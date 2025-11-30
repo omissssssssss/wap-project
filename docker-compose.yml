@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  mysql_db:
+    image: mysql:8
+    container_name: mysql_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: cake_shop
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - wap_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+  backend_service:
+    build:
+      context: ./backend
+    container_name: backend_service
+    environment:
+      DB_HOST: mysql_db
+      DB_USER: root
+      DB_PASS: root
+      DB_NAME: cake_shop
+      DB_PORT: 3306
+    ports:
+      - "5001:5001"
+    depends_on:
+      mysql_db:
+        condition: service_healthy
+    networks:
+      - wap_net
+
+  frontend_app:
+    build:
+      context: ./frontend
+    container_name: frontend_app
+    ports:
+      - "3000:3000"
+    networks:
+      - wap_net
+    stdin_open: true
+    tty: true
+
+volumes:
+  mysql_data:
+
+networks:
+  wap_net:
