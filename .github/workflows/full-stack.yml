@@ -21,35 +21,42 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 3. Build & up Docker Compose (v2 syntax)
+      # 3. Build & Start Docker Compose
       - name: Build and start Docker Compose
         run: |
           docker compose up -d --build
-          echo "Waiting for MySQL and Backend to be ready..."
-          for i in {1..30}; do
-            mysql_ready=$(docker exec mysql_db mysqladmin ping -uroot -proot | grep 'mysqld is alive' || true)
-            backend_ready=$(curl -s http://localhost:5001/ || true)
+          echo "Waiting for MySQL & Backend to be ready..."
+          for i in {1..40}; do
+            mysql_ready=$(docker exec mysql_db mysqladmin ping -uroot -proot 2>/dev/null | grep 'mysqld is alive' || true)
+            backend_ready=$(curl -s http://localhost:5001/ | grep -v "Connection refused" || true)
+
             if [ ! -z "$mysql_ready" ] && [ ! -z "$backend_ready" ]; then
               echo "All services are ready!"
               break
             fi
+
             echo "Waiting for services... retry $i"
-            sleep 2
+            sleep 3
           done
 
       # 4. Run Backend Test
-      - name: Run Backend Test
-        run: docker exec backend_service npm test
+      - name: Run Backend Tests
+        run: |
+          docker exec backend npm install
+          docker exec backend npm test
 
       # 5. Run Frontend Test
-      - name: Run Frontend Test
-        run: docker exec frontend_app npm test
+      - name: Run Frontend Tests
+        run: |
+          docker exec frontend npm install
+          docker exec frontend npm test
 
       # 6. Tear down containers
-      - name: Tear down
+      - name: Tear down containers
         run: docker compose down -v
 
       # 7. Success message
-      - name: Success
-        run: echo "✅ Full stack React + Backend + MySQL setup success!"
+      - name: CI Success
+        run: echo "✅ Full stack CI/CD: Backend + Frontend + MySQL test success!"
+
 
